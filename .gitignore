@@ -16,4 +16,5 @@ test.*
 !/vendor/vendor.json
 
 *.bak
-ucloud_umon_to_influxdb
+*.log
+*.gz
