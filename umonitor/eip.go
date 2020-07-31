@@ -1,7 +1,6 @@
 package umonitor
 
 import (
-	"runtime"
 	"sync"
 
 	"github.com/prometheus/client_golang/prometheus"
@@ -25,7 +24,7 @@ func init() {
 
 // ueip函数
 func ueipResourceUpdate(uauth *UAuth, uzone *uZoneInfo, resourceMetric *ucloudResourceMetrics) (*ucloudResourceMetrics, error, string) {
-	selfFunc, _, _, _ := runtime.Caller(1)
+
 	if nil == resourceMetric {
 		resourceMetric = new(ucloudResourceMetrics)
 		resourceMetric.ResourceType = uMetricsNew(typeEIP)
@@ -74,7 +73,7 @@ ForEnd:
 		"resource update ok",
 		zap.String("type", string(typeEIP)),
 	)
-	return resourceMetric, nil, runtime.FuncForPC(selfFunc).Name()
+	return resourceMetric, nil, "ueipResourceUpdate"
 }
 
 func ueipInstanceRequest(uclient *unet.UNetClient, projectID, projectName, region string) {

@@ -1,43 +1,46 @@
 package umonitor
 
 import (
-	"github.com/ucloud/ucloud-sdk-go/services/uhost"
+	"github.com/ucloud/ucloud-sdk-go/services/umem"
 	"go.uber.org/zap"
 )
 
-const typeUHost = "uhost"
+//DescribeDB
+const typeURedis = "uredis"
 
 var (
-	uhostChan = make(chan *resourceLabels, 1000)
+	uredisChan = make(chan *resourceLabels, 500)
 )
 
+// 初始化，注册uredis功能函数
 func init() {
-	registerResource(typeUHost, uhostResourceUpdate)
+	registerResource(typeURedis, uredisResourceUpdate)
 }
 
-func uhostResourceUpdate(uauth *UAuth, uzone *uZoneInfo, resourceMetric *ucloudResourceMetrics) (*ucloudResourceMetrics, error, string) {
+// uredis函数
+func uredisResourceUpdate(uauth *UAuth, uzone *uZoneInfo, resourceMetric *ucloudResourceMetrics) (*ucloudResourceMetrics, error, string) {
 
 	if nil == resourceMetric {
 		resourceMetric = new(ucloudResourceMetrics)
-		resourceMetric.ResourceType = uMetricsNew(typeUHost)
+		resourceMetric.ResourceType = uMetricsNew(typeURedis)
 		resourceMetric.ResourceIDList = make(map[string]*resourceLabels)
 	}
 	resourceMetric.Lock()
 	defer resourceMetric.Unlock()
 	resourceMetric.ResourceType.Upate(uauth)
 
-	uclient := uhost.NewClient(uauth.cfg, uauth.cre)
+	uclient := umem.NewClient(uauth.cfg, uauth.cre)
 	num := len(uzone.projectsInfo) * len(uzone.regionInfo)
 
 	for projectID, projectName := range uzone.projectsInfo {
 		for region := range uzone.regionInfo {
-			go uHostInstanceRequest(uclient, projectID, projectName, region)
+			go uredisInstanceRequest(uclient, projectID, projectName, region)
 		}
 	}
 
 	for {
 		select {
-		case resourcelabels := <-uhostChan:
+		case resourcelabels := <-uredisChan:
 			if nil == resourcelabels {
 				num = num - 1
 				if num == 0 {
@@ -63,56 +66,54 @@ func uhostResourceUpdate(uauth *UAuth, uzone *uZoneInfo, resourceMetric *ucloudR
 ForEnd:
 	selfConf.logger.Info(
 		"resource update ok",
-		zap.String("type", string(typeUHost)),
+		zap.String("type", string(typeURedis)),
 	)
-	return resourceMetric, nil, "uhostResourceUpdate"
+	return resourceMetric, nil, "uredisResourceUpdate"
 }
 
-func uHostInstanceRequest(uclient *uhost.UHostClient, projectID, projectName, region string) {
+func uredisInstanceRequest(uclient *umem.UMemClient, projectID, projectName, region string) {
 
 	offset := 0
-	limit := 200
+	limit := 50
 
-	uhostReq := uclient.NewDescribeUHostInstanceRequest()
-	uhostReq.ProjectId = &projectID
-	uhostReq.Region = &region
-	uhostReq.Offset = &offset
-	uhostReq.Limit = &limit
-
-	uHostList, _ := uclient.DescribeUHostInstance(uhostReq)
-	if uHostList.TotalCount == 0 {
+	umemReq := uclient.NewDescribeURedisGroupRequest()
+	umemReq.ProjectId = &projectID
+	umemReq.Region = &region
+	umemReq.Offset = &offset
+	umemReq.Limit = &limit
+	umemList, _ := uclient.DescribeURedisGroup(umemReq)
+	if umemList.TotalCount == 0 {
 		selfConf.logger.Debug("Not resource.",
 			zap.String("Project", string(projectName)),
 			zap.String("Region", string(region)),
-			zap.String("Type", string(typeUHost)),
+			zap.String("Type", string(typeURedis)),
 		)
-		uhostChan <- nil
+		uredisChan <- nil
 		return
 	}
 	selfConf.logger.Info("",
 		zap.String("Project", string(projectName)),
 		zap.String("Region", string(region)),
-		zap.String("Type", string(typeUHost)),
-		zap.Int("resource_num", uHostList.TotalCount),
+		zap.String("Type", string(typeURedis)),
+		zap.Int("resource_num", umemList.TotalCount),
 	)
-	for i := 0; i < uHostList.TotalCount; i = i + limit {
+	for i := 0; i < umemList.TotalCount; i = i + limit {
 		offset = i
 		if offset > 0 {
-			uHostList, _ = uclient.DescribeUHostInstance(uhostReq)
+			umemList, _ = uclient.DescribeURedisGroup(umemReq)
 		}
-
-		for _, host := range uHostList.UHostSet {
+		for _, umen := range umemList.DataSet {
 			resourcelabels := new(resourceLabels)
 			resourcelabels.project_id = projectID
 			resourcelabels.project_name = projectName
 			resourcelabels.region_id = region
-			resourcelabels.resource_type = typeUHost
-			resourcelabels.resource_id = host.UHostId
-			resourcelabels.zone_id = host.Zone
-			resourcelabels.resource_name = host.Name
+			resourcelabels.resource_type = typeURedis
+			resourcelabels.resource_id = umen.GroupId
+			resourcelabels.zone_id = umen.Zone
+			resourcelabels.resource_name = umen.Name
 			resourcelabels.hashid = resourcelabels.resource_id + resourcelabels.project_id + resourcelabels.region_id + resourcelabels.resource_name
-			uhostChan <- resourcelabels
+			uredisChan <- resourcelabels
 		}
 	}
-	uhostChan <- nil
+	uredisChan <- nil
 }
