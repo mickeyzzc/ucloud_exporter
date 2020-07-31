@@ -92,13 +92,14 @@ func (ucrs *ucloudResources) Collect(ch chan<- prometheus.Metric) {
 			pool.Add(1)
 			go func(resourceType *ucloudMetrics, selfID string, selfLabels *resourceLabels) {
 				defer pool.Done()
-				metricsValues, err := resourceType.GetValue(uClient, selfLabels.project_id, selfLabels.region_id, selfLabels.zone_id, selfID, 59, 0, 0)
+				metricsValues, err := resourceType.GetValue(uClient, selfLabels.project_id, selfLabels.region_id, selfLabels.zone_id, selfID, selfLabels.resource_type, 59, 0, 0)
 				if nil != err {
 					selfConf.logger.Warn(
 						"get umon value err",
-						zap.Any("project", selfLabels.project_id),
-						zap.Any("region", selfLabels.region_id),
-						zap.Any("resource_id", selfID),
+						zap.String("project", selfLabels.project_id),
+						zap.String("region", selfLabels.region_id),
+						zap.String("resource_id", selfID),
+						zap.String("resource_type", selfLabels.resource_type),
 					)
 					return
 				}

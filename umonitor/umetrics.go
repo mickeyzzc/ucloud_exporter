@@ -113,7 +113,7 @@ type uMetricsValue struct {
 }
 
 // 调API获取监控数据
-func (ums *ucloudMetrics) GetValue(uClient *umon.UMonClient, project, region, zone, resourceID string, timeRange, timeBegin, timeEnd int) (*map[string]*uMetricsValue, error) {
+func (ums *ucloudMetrics) GetValue(uClient *umon.UMonClient, project, region, zone, resourceID, resourceType string, timeRange, timeBegin, timeEnd int) (*map[string]*uMetricsValue, error) {
 	defer func() {
 		if err := recover(); err != nil {
 			selfConf.logger.Error("func get metrics err",
@@ -134,6 +134,9 @@ func (ums *ucloudMetrics) GetValue(uClient *umon.UMonClient, project, region, zo
 	}
 	req.ResourceId = &resourceID
 	req.ResourceType = &ums.ResourceType
+	if len(resourceType) != 0 {
+		req.ResourceType = &resourceType
+	}
 	// 2009-08-11 22:13:20
 	if timeBegin > 1250000000 && timeEnd > timeBegin {
 		req.BeginTime = &timeBegin
@@ -146,6 +149,15 @@ func (ums *ucloudMetrics) GetValue(uClient *umon.UMonClient, project, region, zo
 
 	resp, err := uClient.GetMetric(req)
 	if err != nil {
+		selfConf.logger.Warn(
+			"get value err ",
+			zap.Any("id", &req.ResourceId),
+			zap.Any("typeName", &req.ResourceType),
+			zap.Any("labels.project_id", &req.ProjectId),
+			zap.Any("labels.region_id", &req.Region),
+			zap.Any("labels.zone_id", &req.Zone),
+			zap.Any("MetricName", &req.MetricName),
+		)
 		return nil, err
 	}
 	metricsLists := make(map[string]*uMetricsValue, 0)
