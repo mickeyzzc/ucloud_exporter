@@ -41,6 +41,42 @@ type resourceLabels struct {
 	resource_type string
 }
 
+// 两个资源互做差集
+func diffUcloudResource(resourceA, resourceB *ucloudResourceMetrics) (map[string]*resourceLabels, map[string]*resourceLabels) {
+	resourceA.RLock()
+	defer resourceA.RUnlock()
+	resourceB.RLock()
+	defer resourceB.RUnlock()
+	onlyAidMap := make(map[string]*resourceLabels)
+	onlyBidMap := make(map[string]*resourceLabels)
+	resourceAid := resourceA.ResourceIDList
+	resourceBid := resourceB.ResourceIDList
+
+	for key_a, _ := range resourceAid {
+		label, found := resourceBid[key_a]
+		if !found {
+			selfConf.logger.Info(
+				"resource del info",
+				zap.String("type", resourceA.ResourceType.ResourceType),
+				zap.String("id", key_a),
+			)
+			onlyAidMap[key_a] = label
+		}
+	}
+	for key_b, _ := range resourceBid {
+		label, found := resourceAid[key_b]
+		if !found {
+			selfConf.logger.Info(
+				"resource add info",
+				zap.String("type", resourceA.ResourceType.ResourceType),
+				zap.String("id", key_b),
+			)
+			onlyBidMap[key_b] = label
+		}
+	}
+	return onlyAidMap, onlyBidMap
+}
+
 func ResourceHandle(renetTime *int64) {
 	resourceUpdate()
 	gcTimeChan := make(chan *int64)
@@ -78,7 +114,15 @@ func resourceUpdate() {
 			if err != nil {
 				return
 			}
-			selfResource.resourceList[selfname] = resources
+
+			if len(resources.ResourceIDList) > 0 {
+				oldResources, found := selfResource.resourceList[selfname]
+				if found {
+					diffUcloudResource(oldResources, resources)
+				}
+				selfResource.resourceList[selfname] = resources
+			}
+
 		}(name, fn)
 	}
 

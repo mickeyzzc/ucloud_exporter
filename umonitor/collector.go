@@ -64,7 +64,7 @@ func (ucrs *ucloudResources) Collect(ch chan<- prometheus.Metric) {
 		}
 	}()
 
-	var pool = PoolNew(30)
+	var pool = PoolNew(50)
 	uClient := umon.NewClient(selfConf.uauth.cfg, selfConf.uauth.cre)
 	//nowTime := time.Now().Unix()
 	//beforeTime := nowTime - *ttStatus.resetTime

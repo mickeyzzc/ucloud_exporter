@@ -15,6 +15,7 @@ test.*
 /vendor/*
 !/vendor/vendor.json
 
+ucloud_exporter
 *.bak
 *.log
 *.gz
