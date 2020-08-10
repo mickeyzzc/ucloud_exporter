@@ -169,12 +169,31 @@ func (ums *ucloudMetrics) GetValue(uClient *umon.UMonClient, project, region, zo
 			continue
 		}
 		if len(values) == 0 {
+			selfConf.logger.Debug(
+				"cat not get value ",
+				zap.Any("id", &req.ResourceId),
+				zap.Any("typeName", &req.ResourceType),
+				zap.Any("labels.project_id", &req.ProjectId),
+				zap.Any("labels.region_id", &req.Region),
+				zap.Any("labels.zone_id", &req.Zone),
+				zap.Any("MetricName", name),
+			)
 			continue
 		}
 		for _, metric := range values {
 			timestamp := time.Unix(int64(metric.Timestamp), 0)
 			f64, err := interface2Float64(metric.Value)
 			if nil != err {
+				selfConf.logger.Warn(
+					"f64 err ",
+					zap.Any("id", &req.ResourceId),
+					zap.Any("typeName", &req.ResourceType),
+					zap.Any("labels.project_id", &req.ProjectId),
+					zap.Any("labels.region_id", &req.Region),
+					zap.Any("labels.zone_id", &req.Zone),
+					zap.Any("MetricName", &req.MetricName),
+					zap.Any("value", metric.Value),
+				)
 				continue
 			}
 			selfConf.logger.Debug(

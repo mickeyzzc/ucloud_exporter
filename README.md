@@ -2,13 +2,14 @@
 
 ## 功能：
 
-支持采集`Ucloud`的以下监控指标，并转化为`Prometheus`格式。
+支持采集`Ucloud`自身监控数据的以下监控指标，并转化为`Prometheus`格式。
 
 - 云主机`uhost`
 - 云分布式内存数据库`umem`
 - 主备版Redis`uredis`
 - 云EIP`ueip`
 - 云磁盘`udisk`
+- 云数据库`udb`，包括`nosql`,`sql`,`postgresql`
 
 ----
 ```

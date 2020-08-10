@@ -1,7 +1,7 @@
 #!/usr/bin/env bash
 
 prog=ucloud_exporter
-version=0.0.1
+version=0.0.3
 
 # 交叉编译
 CGO_ENABLED=0 GOOS=linux GOARCH=amd64 go build -ldflags "\

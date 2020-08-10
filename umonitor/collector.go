@@ -3,6 +3,7 @@ package umonitor
 import (
 	"net/http"
 	"strconv"
+	"time"
 
 	"github.com/prometheus/client_golang/prometheus"
 	"github.com/prometheus/client_golang/prometheus/promhttp"
@@ -66,9 +67,8 @@ func (ucrs *ucloudResources) Collect(ch chan<- prometheus.Metric) {
 
 	var pool = PoolNew(50)
 	uClient := umon.NewClient(selfConf.uauth.cfg, selfConf.uauth.cre)
-	//nowTime := time.Now().Unix()
-	//beforeTime := nowTime - *ttStatus.resetTime
-
+	var tmp_num = 0
+	selfConf.logger.Info("ucloud metrics collect now")
 	for nameTmp, resource := range ucrs.resourceList {
 
 		resource.RLock()
@@ -92,7 +92,7 @@ func (ucrs *ucloudResources) Collect(ch chan<- prometheus.Metric) {
 			pool.Add(1)
 			go func(resourceType *ucloudMetrics, selfID string, selfLabels *resourceLabels) {
 				defer pool.Done()
-				metricsValues, err := resourceType.GetValue(uClient, selfLabels.project_id, selfLabels.region_id, selfLabels.zone_id, selfID, selfLabels.resource_type, 59, 0, 0)
+				metricsValues, err := resourceType.GetValue(uClient, selfLabels.project_id, selfLabels.region_id, selfLabels.zone_id, selfID, selfLabels.resource_type, 600, 0, 0)
 				if nil != err {
 					selfConf.logger.Warn(
 						"get umon value err",
@@ -112,13 +112,21 @@ func (ucrs *ucloudResources) Collect(ch chan<- prometheus.Metric) {
 					selfLabels.resource_id,
 					selfLabels.resource_type,
 				}
+				tmp_num = tmp_num + 1
 				for typeName, values := range *metricsValues {
 					metricType, found := metricTypeList[typeName]
 					if !found {
 						continue
 					}
-
+					tmp_timestamp := time.Unix(int64(0), 0)
+					var tmp_value float64 = 0.0
 					for timestamp, value := range values.value {
+						if timestamp.After(tmp_timestamp) {
+							tmp_timestamp = timestamp
+							tmp_value = value
+						}
+					}
+					if tmp_timestamp.After(time.Unix(int64(1), 0)) {
 						selfConf.logger.Debug(
 							"collector value ",
 							zap.Any("id", selfID),
@@ -127,15 +135,15 @@ func (ucrs *ucloudResources) Collect(ch chan<- prometheus.Metric) {
 							zap.Any("labels.region_id", selfLabels.region_id),
 							zap.Any("labels.zone_id", selfLabels.zone_id),
 							zap.Any("labels.resource_name", selfLabels.resource_name),
-							zap.Any("timestamp", timestamp),
-							zap.Any("value", value),
+							zap.Any("timestamp", tmp_timestamp),
+							zap.Any("value", tmp_value),
 						)
 						ch <- prometheus.NewMetricWithTimestamp(
-							timestamp,
+							tmp_timestamp,
 							prometheus.MustNewConstMetric(
 								metricType.Desc,
 								prometheus.GaugeValue,
-								value,
+								tmp_value,
 								metricLabels...,
 							),
 						)
@@ -148,4 +156,5 @@ func (ucrs *ucloudResources) Collect(ch chan<- prometheus.Metric) {
 		}
 	}
 	pool.Wait()
+	selfConf.logger.Info("ucloud metrics collect over", zap.Int("collect_num", tmp_num))
 }
